@@ -1,28 +1,65 @@
 import socket
+import os
 
-HOST = '172.18.0.2'
-PORT = 7000
+IP = socket.gethostbyname(socket.gethostname())
+PORT = 8888
+ADDR = (IP, PORT)
+SIZE = 10240
+FORMAT = "utf-8"
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind((HOST, PORT))
-s.listen(5)
+def convert_to_bytes(no):
+    result = bytearray()
+    result.append(no & 255)
+    for i in range(3):
+        no = no >> 8
+        result.append(no & 255)
+    return result
 
-print('server start at: %s:%s' % (HOST, PORT))
-print('wait for connection...')
+def bytes_to_number(b):
+    # if Python2.x
+    # b = map(ord, b)
+    res = 0
+    for i in range(4):
+        res += b[i] << (i*8)
+    return res
 
-while True:
-    conn, addr = s.accept()
-    print('connected by ' + str(addr))
 
+def main():
+    print("[STARTING] Server is starting.")
+    """ Staring a TCP socket. """
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+ 
+    """ Bind the IP and PORT to the server. """
+    server.bind(ADDR)
+ 
+    """ Server is listening, i.e., server is now waiting for the client to connected. """
+    server.listen()
+    print("[LISTENING] Server is listening.")
+ 
     while True:
-        indata = conn.recv(1024)
-        if len(indata) == 0: # connection closed
-            conn.close()
-            print('client closed connection.')
-            break
-        print('recv: ' + indata.decode())
-
-        outdata = 'echo ' + indata.decode()
-        #conn.send(outdata.encode())
-    s.close()
+        """ Server has accepted the connection from the client. """
+        conn, addr = server.accept()
+        print(f"[NEW CONNECTION] {addr} connected.")
+ 
+        """ Receiving the filename from the client. """
+        filename = conn.recv(SIZE).decode(FORMAT)
+        print(f"[RECV] Receiving the filename.")
+        file = open(filename, "w")
+        #conn.send("Filename received.".encode(FORMAT))
+ 
+        """ Receiving the file data from the client. """
+        len = os.path.getsize("sample_file.txt")
+        data = conn.recv(len).decode(FORMAT)
+        print(f"[RECV] Receiving the file data.")
+        file.write(data)
+        #conn.send("File data received".encode(FORMAT))
+ 
+        """ Closing the file. """
+        file.close()
+ 
+        """ Closing the connection from the client. """
+        conn.close()
+        print(f"[DISCONNECTED] {addr} disconnected.")
+ 
+if __name__ == "__main__":
+    main()
